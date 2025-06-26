@@ -220,7 +220,7 @@ We will be applying filtering and arranging functions to the Brauer _et al._ dat
 #| message: false
 #| warning: false
 library(tidyverse)
-brauer <- read_csv(file="data/brauer2007_tidy.csv") 
+brauer <- read_csv(file="https://raw.githubusercontent.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/a51b10274d020b15453e6ee0ab7f6e7963327bd5/data/brauer2007_tidy.csv") 
 ```
 
 #### Tasks
@@ -230,7 +230,7 @@ brauer <- read_csv(file="data/brauer2007_tidy.csv")
 #### Answer
 ```{r}
 library(tidyverse)
-brauer <- read_csv(file="data/brauer2007_tidy.csv") 
+brauer <- read_csv(file="https://raw.githubusercontent.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/a51b10274d020b15453e6ee0ab7f6e7963327bd5/data/brauer2007_tidy.csv") 
 
 #1
 filter(brauer, bp == "leucine biosynthesis" & nutrient == "Leucine")
@@ -316,7 +316,7 @@ arrange(
 #| message: false
 #| warning: false
 library(tidyverse)
-brauer <- read_csv(file="data/brauer2007_tidy.csv") 
+brauer <- read_csv(file="https://raw.githubusercontent.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/a51b10274d020b15453e6ee0ab7f6e7963327bd5/data/brauer2007_tidy.csv") 
 ```
 
 #### Tasks
@@ -326,7 +326,7 @@ brauer <- read_csv(file="data/brauer2007_tidy.csv")
 #### Answer
 ```{r}
 library(tidyverse)
-brauer <- read_csv(file="data/brauer2007_tidy.csv")
+brauer <- read_csv(file="https://raw.githubusercontent.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/a51b10274d020b15453e6ee0ab7f6e7963327bd5/data/brauer2007_tidy.csv")
 
 #1
 brauer |> 
@@ -409,7 +409,7 @@ Lots more fun things you can do, see the [data transformation with dplyr cheatsh
 #| message: false
 #| warning: false
 library(tidyverse)
-brauer <- read_csv(file="data/brauer2007_tidy.csv")
+brauer <- read_csv(file="https://raw.githubusercontent.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/a51b10274d020b15453e6ee0ab7f6e7963327bd5/data/brauer2007_tidy.csv")
 ```
 
 #### Tasks
@@ -420,7 +420,7 @@ _Hint:_ 3 pipes: `filter`, `group_by`, `summarise`.
 #### Answer
 ```{r}
 library(tidyverse)
-brauer <- read_csv(file="data/brauer2007_tidy.csv")
+brauer <- read_csv(file="https://raw.githubusercontent.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/a51b10274d020b15453e6ee0ab7f6e7963327bd5/data/brauer2007_tidy.csv")
 
 #1
 brauer |> filter(rate == 0.05 & bp == "response to stress") |>
@@ -712,7 +712,7 @@ In this exercise will will be looking at a 16S sequencing data for the abundance
 library(tidyverse)
 library(rstatix)
 library(ggpubr)
-dat_16S <- read_csv( "data/Arcanobacterium_16S.csv")
+dat_16S <- read_csv( "https://github.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/blob/a51b10274d020b15453e6ee0ab7f6e7963327bd5/data/Arcanobacterium_16S.csv")
 ```
 
 
@@ -722,7 +722,7 @@ dat_16S <- read_csv( "data/Arcanobacterium_16S.csv")
 3. Is it significantly different? In what direction
 4. Repeat using a Mann-Whitney U test 
 5. (stretch) What test is more appropriate in this situation?
-6. (stretch) Look at the file `16S_Community.tsv` and repeat with other genus (`read_csv?????`).
+6. (stretch) Look at the file `16S_Community.tsv` and repeat with other genus (`read_csv("https://github.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/blob/a51b10274d020b15453e6ee0ab7f6e7963327bd5/data/16s_Community.tsv")`).
 
 #### Answers
 ```{r}
@@ -731,7 +731,7 @@ dat_16S <- read_csv( "data/Arcanobacterium_16S.csv")
 library(tidyverse)
 library(rstatix)
 library(ggpubr)
-dat_16S <- read_csv( "data/Arcanobacterium_16S.csv")
+dat_16S <- read_csv( "https://raw.githubusercontent.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/refs/heads/main/data/Arcanobacterium_16S.csv")
 
 #1
 t.test(Arcanobacterium ~ primaryCat, dat = dat_16S)
@@ -840,7 +840,7 @@ library(tidyverse)
 library(rstatix)
 library(ggpubr)
 
-cow_diet <- read_rds("data/cow_diet.rds")
+cow_diet <- read_rds("https://github.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/raw/refs/heads/main/data/cow_diet.rds")
 ```
 
 #### Tasks
@@ -854,7 +854,7 @@ cow_diet <- read_rds("data/cow_diet.rds")
 library(tidyverse)
 library(rstatix)
 library(ggpubr)
-cow_diet <- read_rds("data/cow_diet.rds")
+cow_diet <- read_rds("https://github.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/raw/refs/heads/main/data/cow_diet.rds")
 
 #1
 aov_cow <- aov(uracil ~ diet, data = cow_diet)
@@ -912,7 +912,7 @@ Again, we will be using an adapted version of data published by [Ametaj BN, et a
 #### Setup script
 ```{r}
 library(tidyverse)
-cow_diet <- read_rds("data/cow_diet.rds")
+cow_diet <- read_rds("https://github.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/raw/refs/heads/main/data/cow_diet.rds")
 ```
 
 #### Tasks
@@ -923,7 +923,7 @@ cow_diet <- read_rds("data/cow_diet.rds")
 #### Answers
 ```{r}
 library(tidyverse)
-cow_diet <- read_rds("data/cow_diet.rds")
+cow_diet <- read_rds("https://github.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/raw/refs/heads/main/data/cow_diet.rds")
 
 #1
 cor.test(cow_diet$uracil, cow_diet$xanthine, use="pairwise.complete.obs")
@@ -1083,7 +1083,7 @@ survfit2(Surv(time, status)~sex, data=lung) |>
 
 ```{r}
 library(survival)
-s16_merge <- read_rds("data/s16_merge.rds")
+s16_merge <- read_rds("https://github.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/raw/refs/heads/main/data/s16_merge.rds")
 survdiff(Surv(progression_days, progression)~abbs, data=s16_merge)$pvalue
 ```
 
