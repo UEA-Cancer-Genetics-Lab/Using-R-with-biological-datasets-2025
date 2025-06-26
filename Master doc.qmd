@@ -1,0 +1,1199 @@
+---
+title: "Using R with biological datasets 2025"
+author: "Daniel Brewer"
+format: 
+  html:
+    embed-resources: true
+---
+
+# Install libraries script
+```{r}
+#| label: Install-packages
+#| echo: true
+#| message: false
+#| warning: false
+using<-function(...) {
+    libs<-unlist(list(...))
+    req<-unlist(lapply(libs,require,character.only=TRUE))
+    need<-libs[req==FALSE]
+    if(length(need)>0){ 
+        install.packages(need)
+        lapply(need,require,character.only=TRUE)
+    }
+}
+using("tidyverse","janitor","palmerpenguins","rstatix","ggpubr","skimr",
+      "messy","ggsurvfit","survminer")
+```
+
+```{r}
+#| label: Libraries
+#| message: false
+#| warning: false
+#| include: false
+library(tidyverse)
+library(janitor)
+library(palmerpenguins)
+library(rstatix)
+library(ggpubr)
+library(knitr)
+theme_set(theme_classic())
+```
+
+
+# Tidyverse and data exploration
+
+## Structuring data
+Spreadsheet example:
+![Spreadsheet](images/spreadsheet.png)
+
+This spreadsheet has a fairly strict organisational structure, but is virtually hopeless for doing any kind of serious statistical analysis. It’s also verging on irreparable using R. This because the data in this spreadsheet is organised to be easy to look at with your eyeballs.
+
+Follow these rules:
+
+1. The first row of the data _must_ be the names of the data columns.
+2. All other rows _must_ be the data, and nothing else.
+3. You cannot use empty rows or empty columns as visual aids to look at the data.
+4. Do not use colour or other formatting to indicate information.
+5. The spreadsheet must not contain any summary cells. No final row called “Average” or final column called “Total”. We can create these in R, and they make data processing more complicated if they’re included in the raw data.
+
+## Tidy tables
+You can represent the same underlying data in multiple ways, but they are not equally easy to use. There is one approach that makes it easier to work with "tidy tables".
+
+There are three interrelated rules that make a dataset tidy:
+
+1. Each variable is a column; each column is a variable.
+2. Each observation is a row; each row is an observation.
+3. Each value is a cell; each cell is a single value.
+
+![](images/TidyTable.png)
+
+Why ensure that your data is tidy? There are two main advantages:
+
+- There’s a general advantage to picking one consistent way of storing data. If you have a consistent data structure, it’s easier to learn the tools that work with it because they have an underlying uniformity.
+- There’s a specific advantage to placing variables in columns because it allows R’s vectorized nature to shine. That makes transforming tidy data feel particularly natural.
+
+An example of an untidy table:
+
+![](images/untidy.png)
+
+This is some made-up data for five different patients (Jon, Ann, Bill, Kate, and Joe) given three different drugs (A, B, and C), at two doses (10 and 20), and measuring their heart rate.
+
+Tidy version:
+
+![](images/tidy.png)
+
+## Exploratory Data Analysis (EDA)
+Exploratory data analysis is an approach of analysing data sets to summarise their main characteristics. It is the first thing you should do with any data set you have access to, and R has a few functions to make this easier.
+
+### The Iris data set
+![](images/Iris.jpg)
+
+- The Iris flower data set or Fisher's Iris data set is a multivariate data set used and made famous by the British statistician and biologist Ronald Fisher in a 1936 paper.
+- The data set consists of 50 samples from each of three species of Iris (Iris setosa, Iris virginica and Iris versicolor).
+-  Four features were measured from each sample: the length and the width of the sepals and petals, in centimeters.
+
+
+### `summary()`
+
+When `summary()` is applied to a data frame it produce some simple summary statistics of all the columns.
+
+- For continuous variables it provides minimum, maximum, median, mean, and quartiles values, as well as any missing data.
+- For factors it provides the count of each factor and the number of missing values.
+
+```{r}
+summary(iris)
+```
+
+### `glimpse()`
+
+`glimpse()` provides a peak at your data. For each column, it provides the type of variable and the first few values. It is in an easy to read format for even large data frames with each row being a different column.
+
+```{r}
+glimpse(iris)
+```
+
+### skimr
+`skimr` provides a frictionless approach to summary statistics which conforms to the [principle of least surprise](https://en.wikipedia.org/wiki/Principle_of_least_astonishment), displaying summary statistics the user can skim quickly to understand their data. 
+- Provides a larger set of statistics than `summary()`, including missing, complete, n, and sd.
+- reports each data types separately
+- handles dates, logicals, and a variety of other types
+- supports console text graphs
+
+```{r}
+library(skimr)
+skim(iris)
+```
+
+### Exercise - EDA
+#### Introduction
+Here we are going to use the `palmerpenguins` dataset. Data were collected and made available by [Dr. Kristen Gorman](https://www.uaf.edu/cfos/people/faculty/detail/kristen-gorman.php) and the [Palmer Station, Antarctica LTER](https://pallter.marine.rutgers.edu/), a member of the [Long Term Ecological Research Network](https://lternet.edu/).
+
+![](images/penguins.png)
+
+#### Setup script
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+library(palmerpenguins)
+library(skimr)
+```
+
+#### Tasks
+Using the `penguins` data:
+
+1. Apply the `summary()` function
+2. Apply the `glimpse()` function
+3. Apply the `skim()` function
+
+#### Answer
+```{r}
+summary(penguins)
+glimpse(penguins)
+skim(penguins)
+```
+
+## Data Manipulation with dplyr
+The `dplyr` package gives you a handful of useful **verbs** for managing data. What they have in common:
+
+1. The first argument is always a data frame.
+2. The subsequent arguments typically describe which columns to operate on using the variable names (without quotes).
+3. The output is always a new data frame.
+
+The data we’re going to look at is cleaned up version of a gene expression dataset from [Brauer et al. Coordination of Growth Rate, Cell Cycle, Stress Response, and Metabolic Activity in Yeast (2008) _Mol Biol Cell_ 19:352-367](http://www.ncbi.nlm.nih.gov/pubmed/17959824) - `bauer`. This data is from a gene expression microarray, and in this paper the authors are examining the relationship between growth rate and gene expression in yeast cultures limited by one of six different nutrients (glucose, leucine, ammonium, sulfate, phosphate, uracil).
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+brauer <- read_csv("data/brauer2007_tidy.csv")
+print(brauer)
+glimpse(brauer)
+```
+
+
+### `filter()`
+If you want to filter **rows** of the data where some condition is true, use the `filter()` function.
+
+1. The first argument is the data frame you want to filter, e.g. `filter(mydata, ...`.
+2. The second argument is a condition you must satisfy, e.g. `filter(ydat, symbol == "LEU1")`. If you want to satisfy _all_ of multiple conditions, you can use the “and” operator, `&`. The “or” operator `|` (the pipe character, usually shift-backslash) will return a subset that meet _any_ of the conditions.
+
+- `==`: Equal to
+- `!=`: Not equal to
+- `>`, `>=`: Greater than, greater than or equal to
+- `<`, `<=`: Less than, less than or equal to
+
+```{r}
+# Look at a single gene involved in leucine synthesis pathway
+filter(brauer, symbol == "LEU1")
+```
+
+```{r}
+# Look at multiple genes
+filter(brauer, symbol=="LEU1" | symbol=="ADH2")
+```
+
+```{r}
+# Look at LEU1 expression at a low growth rate due to nutrient depletion
+# Notice how LEU1 is highly upregulated when leucine is depleted!
+filter(brauer, symbol=="LEU1" & rate==.05)
+```
+
+### `arrange()`
+The `arrange()` function does what it sounds like. It takes a data frame and arranges (or sorts) by column(s) of interest. The first argument is the data, and subsequent arguments are columns to sort on. Use the `desc()` function to arrange by descending.
+
+```{r}
+# arrange by expression (default: increasing)
+arrange(brauer, expression)
+```
+```{r}
+# arrange by decreasing expression
+arrange(brauer, desc(expression))
+```
+
+### Exercise - Data Manipulation with dplyr
+#### Introduction
+We will be applying filtering and arranging functions to the Brauer _et al._ dataset
+
+#### Setup script
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+brauer <- read_csv(file="data/brauer2007_tidy.csv") 
+```
+
+#### Tasks
+1. Display the data where the gene ontology biological process (the `bp` variable) is “leucine biosynthesis” (case-sensitive) _and_ the limiting nutrient was Leucine. (Answer should return a 24-by-7 data frame – 4 genes × 6 growth rates).
+2. Wrap this entire filtered result with a call to `arrange()` where you’ll arrange the result of #1 by the gene symbol.
+
+#### Answer
+```{r}
+library(tidyverse)
+brauer <- read_csv(file="data/brauer2007_tidy.csv") 
+
+#1
+filter(brauer, bp == "leucine biosynthesis" & nutrient == "Leucine")
+
+#2
+arrange(filter(brauer, bp == "leucine biosynthesis" & nutrient == "Leucine"), symbol)
+```
+
+### `select()`
+The `filter()` function allows you to return only certain _rows_ matching a condition. The `select()` function returns only certain _columns_. The first argument is the data, and subsequent arguments are the columns you want.
+
+![](images/select.png)
+
+```{r}
+# Select just the symbol and systematic_name
+select(brauer, symbol, systematic_name)
+```
+
+```{r}
+# Alternatively, just remove columns. Remove the bp and mf columns.
+select(brauer, -bp, -mf)
+```
+
+These functions do not change the original data. You need to assign the results to another variable if you want to keep them.
+
+```{r}
+# create a new dataset without the go annotations.
+nogo <- select(brauer, -bp, -mf)
+nogo
+```
+
+### `mutate()`
+The `mutate()` function adds new columns to the data based on other columns.
+
+The expression level reported here is the $log_2$ of the sample signal divided by the signal in the reference channel, where the reference RNA for all samples was taken from the glucose-limited chemostat grown at a dilution rate of $0.25 h^{−1}$. Let’s mutate this data to add a new variable called “signal” that’s the actual raw signal ratio instead of the log-transformed signal. Let’s make another column that’s the square root of the signal ratio.
+```{r}
+mutate(nogo, signal=2^expression, sigsr=sqrt(signal))
+```
+
+
+### Pipe `|>`
+
+`|>` is super cool and lets you _pipe_ the output of one function to the input of another, so you can avoid nesting functions.
+```{r}
+tail(brauer, 5)
+```
+```{r}
+brauer |> tail(5)
+```
+
+When there are multiple functions, it’s easy to skim because the verbs come at the start of each line.
+
+For example:
+
+```default
+flights |> 
+  filter(dest == "IAH") |> 
+  mutate(speed = distance / air_time * 60) |> 
+  select(year:day, dep_time, carrier, flight, speed) |> 
+  arrange(desc(speed))
+```
+Start with the `flights` data, then filter, then mutate, then select, then arrange. Compare with:
+```default
+arrange(
+  select(
+    mutate(
+      filter(
+        flights, 
+        dest == "IAH"
+      ),
+      speed = distance / air_time * 60
+    ),
+    year:day, dep_time, carrier, flight, speed
+  ),
+  desc(speed)
+)
+```
+
+### Exercise - Data Manipulation with dplyr 2
+
+#### Setup script
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+brauer <- read_csv(file="data/brauer2007_tidy.csv") 
+```
+
+#### Tasks
+1. Show the limiting nutrient and expression values for the gene ADH2 when the growth rate is restricted to 0.05. _Hint:_ 2 pipes: `filter` and `select`.
+2. What are the most highly expressed genes when the growth rate is restricted to 0.05 by restricting glucose? Show only the symbol, expression value, and GO terms._Hint:_ 3 pipes: `filter`, `arrange`, and `select`.
+
+#### Answer
+```{r}
+library(tidyverse)
+brauer <- read_csv(file="data/brauer2007_tidy.csv")
+
+#1
+brauer |> 
+  filter(symbol == "ADH2" & rate == 0.05) |>
+  select(nutrient, expression)
+
+#2
+brauer |> 
+  filter(rate == 0.05 & nutrient == "Glucose") |>
+  select(symbol, expression, mf, bp) |>
+  arrange(desc(expression))
+```
+
+## Data cleaning
+
+The above processes can be very useful to clean up a dataset and get it the way that you want. Other useful functions:
+
+- `rename()` - changes the names of individual variables using `new_name = old_name` syntax e.g. `iris_rename <- iris |> rename(petal_length = Petal.Length)`
+- `drop_na(col)` - detects whether there is a missing value e.g. `iris_noNA <- iris |> drop_na(Petal.Length)`
+- `drop_na()` - removes any rows of a data frame that contain an NA in any column e.g. `iris_noNA <- drop_na()` 
+- `distinct(cols)` - Keep only unique/distinct rows from a data frame.
+
+```{r}
+df <- tibble(
+  x = sample(10, 100, rep = TRUE),
+  y = sample(10, 100, rep = TRUE)
+)
+nrow(df)
+nrow(distinct(df))
+nrow(distinct(df, x, y))
+
+distinct(df, x)
+
+# You can choose to keep all other variables as well. Returns the first match only.
+distinct(df, x, .keep_all = TRUE)
+```
+
+###  Advanced stretch exercise 1 
+#### Setup script
+```{r}
+#| message: false
+#| warning: false
+if (!require("messy")) install.packages("messy")
+library(messy)
+library(datasets)
+data(iris)
+iris2 <- messy(iris)
+```
+
+#### Tasks
+Clean up `iris2` i.e. 
+
+ - make column `Species` be a factor with three entries i.e. setosa, versicolor, virginica.
+ - remove rows with missing data.
+ 
+###  Advanced stretch exercise 2
+#### Tasks
+1. Download a messy dataset from [Messy Datasets](https://github.com/higgi13425/medicaldata?tab=readme-ov-file#messy-datasets) 
+2. Clean it up.
+
+## Manipulating Groups
+Split-apply-combine is a very common data analysis pattern. 
+You see the split-apply-combine strategy whenever you break up a big problem into manageable pieces, operate on each piece independently and then put all the pieces back together.
+![](images/split_apply_combine.jpg)
+
+This pattern is performed in R using `dplyr`'s `group_by` and `summarise()` functions.
+
+```
+data |>
+group_by(col1) |>
+summarise(mean_col2 = mean(col2))
+```
+![](images/groupby.png)
+
+Lots more fun things you can do, see the [data transformation with dplyr cheatsheet](https://github.com/rstudio/cheatsheets/blob/main/data-transformation.pdf)
+
+### Exercise - Manipulating Groups
+#### Setup script
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+brauer <- read_csv(file="data/brauer2007_tidy.csv")
+```
+
+#### Tasks
+1. When the growth rate is restricted to 0.05, what is the average expression level across all genes in the “response to stress” biological process, separately for each limiting nutrient? 
+2. What about genes in the “protein biosynthesis” biological process? 
+_Hint:_ 3 pipes: `filter`, `group_by`, `summarise`.
+
+#### Answer
+```{r}
+library(tidyverse)
+brauer <- read_csv(file="data/brauer2007_tidy.csv")
+
+#1
+brauer |> filter(rate == 0.05 & bp == "response to stress") |>
+  group_by(nutrient) |>
+  summarise(mean_expr = mean(expression, na.rm = TRUE))
+```
+```{r}
+#2
+brauer |> filter(rate == 0.05 & bp == "protein biosynthesis") |>
+  group_by(nutrient) |>
+  summarise(mean_expr = mean(expression, na.rm = TRUE))
+```
+
+###  Advanced stretch exercise
+#### Introduction
+Needed new functions:
+
+- `n_distinct()` within a `summarise()` call gives you the number of distinct values of a variable
+- `head(n=10)` gives the top `n` rows of a data frame.
+
+#### Tasks
+1. Which 10 biological process annotations have the most genes associated with them?  _Hint:_ 4 pipes: `group_by`, `summarise` with `n_distinct`, `arrange`, `head`.
+2. What about molecular functions?
+3. When the growth rate is restricted to 0.05 by limiting Glucose, which biological processes are the most upregulated? Show a sorted list with the most upregulated BPs on top, displaying the biological process and the average expression of all genes in that process rounded to two digits. _Hint:_ 5 pipes: `filter`, `group_by`, `summarise`, `mutate`, `arrange`.
+
+# Statistics basics
+## GGplot2 reminder
+ggplot2 is built on the grammar of graphics, the idea that any plot can be built from the same set of components: a **data set**, **mapping aesthetics**, and graphical **layers**:
+
+- **Data sets** are the data that you, the user, provide.
+- **Mapping aesthetics** are what connect the data to the graphics. They tell ggplot2 how to use your data to affect how the graph looks, such as changing what is plotted on the X or Y axis, or the size or color of different data points.
+- **Layers** are the actual graphical output from ggplot2. Layers determine what kinds of plot are shown (scatterplot, histogram, etc.), the coordinate system used (rectangular, polar, others), and other important aspects of the plot. The idea of layers of graphics may be familiar to you if you have used image editing programs like Photoshop, Illustrator, or Inkscape.
+
+For more information please see this [cheat sheet](https://rstudio.github.io/cheatsheets/data-visualization.pdf).
+
+Example:
+```{r}
+library(datasets)
+data(iris)
+ggplot(data = iris, mapping = aes(x=Species, y=Petal.Width, colour = Species))
+```
+
+```{r}
+ggplot(data = iris, mapping = aes(x=Species, y=Petal.Width, colour = Species)) +
+	geom_boxplot()
+```
+
+```{r}
+ggplot(data = iris, mapping = aes(x=Species, y=Petal.Width, colour = Species)) +
+	geom_boxplot() + 
+	geom_jitter()
+```
+
+## Descriptive statistics of a single variable
+
+The term descriptive statistics refers to **the act of describing and summarising data**. This can be done using tables, plots, charts and key descriptive values such as the size of the dataset, percentages, average values and measures of spread.
+
+A lot of the descriptive statistics that we are interested in reported can be gained quickly using the Exploratory Data Analysis functions we have already encountered i.e. `summary()` and `skim()`.
+
+### Continuous variables
+- `mean(x)` - The arithmetic mean of the values in _x_ is computed i.e. find the sum of all values, and divide the sum by the number of values.
+- `sd(x)` - computes the standard deviation of the values in _x_. Standard deviation is a measure that describes how much data points in a dataset deviate from the mean (average) value.
+- `median(x)` - computes the median average of the values in _x_. The median is the value that's exactly in the middle of a dataset when it is ordered.
+- `IQR(x)` - calculates the interquartile range of the values in _x_. The interquartile range is a measure of statistical dispersion, which is the spread of the data. It is the 75th percentile value minus the 25th percentile value.
+
+```{r}
+mean(iris$Petal.Length, na.rm = TRUE)
+sd(iris$Petal.Length, na.rm = TRUE)
+median(iris$Petal.Length, na.rm = TRUE)
+IQR(iris$Petal.Length, na.rm = TRUE)
+```
+
+It can also be useful to plot the distribution of a continuous variable using a histogram or density plot.
+
+```{r}
+#| message: false
+#| warning: false
+ggplot(iris, aes(x=Petal.Length)) + geom_histogram()
+```
+
+```{r}
+ggplot(iris, aes(x=Petal.Length)) + geom_density()
+```
+
+### Categorical variables i.e. factors
+
+For categorical variables you would summarise by counting the number in each category.
+
+```default
+> table(penguins$island)
+
+   Biscoe     Dream Torgersen
+      168       124        52
+```
+
+This can be visualised using a barplot.
+
+```{r}
+ggplot(penguins, aes(x = island, fill = island)) + geom_bar()
+```
+
+### Exercise - Descriptive statistics of a single variable
+#### Introduction
+Here we are going to use the `penguins` data from the `palmerpenguins` dataset.
+#### Setup script
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+library(palmerpenguins)
+```
+
+#### Tasks
+Find:
+
+1. The number of each species.
+2. Produce a bar plot of the above.
+3. The mean and standard deviation of the bill depth in mm.
+4. The median and interquartile range of the bill length in mm.
+5. Plot a histogram of the body mass in grams of the penguins
+
+#### Answer
+```{r}
+library(tidyverse)
+library(palmerpenguins)
+
+#1
+table(penguins$species)
+
+#2
+ggplot(penguins, aes(x = species, fill = species)) + geom_bar()
+
+#3
+mean(penguins$bill_depth_mm, na.rm = TRUE)
+sd(penguins$bill_depth_mm, na.rm = TRUE)
+
+#4
+median(penguins$bill_length_mm, na.rm = TRUE)
+IQR(penguins$bill_length_mm, na.rm = TRUE)
+
+#5
+ggplot(penguins, aes(x = body_mass_g)) + geom_histogram()
+```
+
+
+
+## For a continuous variable are the average values of two groups different?
+
+One of the most common questions that researchers ask is, “Do we have evidence that the average value of a trait in one group differs from the average for another group?”.
+
+### *t*-tests
+This is the most commonly used approach.
+
+#### Assumptions
+
+- The data are continuous.
+- The sample data have been randomly sampled from a population.
+- The distribution is approximately normal.
+
+#### Example
+```{r}
+# Preparing a suitable dataset
+peng_means <- penguins |> 
+  filter(species %in% c("Adelie","Gentoo") & !is.na(bill_depth_mm)) |>
+  mutate(species = factor(species))
+
+ttest_res <- t.test(bill_depth_mm ~ species, data = peng_means)
+
+print(ttest_res)
+print(ttest_res$p.value)
+```
+
+```{r}
+library(tidyverse)
+library(palmerpenguins)
+library(rstatix)
+library(ggpubr)
+
+ttest_res <- peng_means |> 
+  t_test(bill_depth_mm ~ species) |> 
+  add_xy_position()
+
+ggplot(peng_means, aes(x = species, y = bill_depth_mm)) +
+	geom_boxplot() +
+	stat_pvalue_manual(ttest_res)
+```
+
+```{r}
+ttest_res <- peng_means |> 
+  t_test(bill_depth_mm ~ species) |> 
+  add_xy_position() |> 
+  add_significance()
+
+ggplot(peng_means, aes(x = species, y = bill_depth_mm)) +
+	geom_boxplot() +
+	stat_pvalue_manual(ttest_res, label = "p.signif")
+```
+
+By default R uses the Welch two-sample *t*-test rather than Student's two sample *t*-test. This is a good idea as it means we don't have to assume that the variability of the data in each group is similar.
+
+#### Testing the distribution is approximately normal.
+
+There are two main approaches to testing the normal distribution: visual examination through plots and normality tests.
+
+One way is to plot the distribution using a histogram.
+```{r}
+#| message: false
+#| warning: false
+ggplot(penguins |> filter(species == "Gentoo"), aes(x=bill_depth_mm)) + 
+  geom_histogram()
+```
+
+A QQ plot, or Quantile-Quantile plot, is a graphical tool used to assess whether a dataset follows a specific theoretical distribution, often a normal distribution. It does this by plotting the quantiles of the observed data against the quantiles of the theoretical distribution. 
+```{r}
+#| message: false
+#| warning: false
+ggplot(penguins |> filter(species == "Gentoo"), aes(sample=body_mass_g)) + 
+  geom_qq() + 
+  geom_qq_line()
+```
+
+The most common statistical test for normality is the Shapiro-Wilk test. The Shapiro-Wilk test is a goodness-of-fit whose null hypothesis is that the sample has been generated from a normal distribution. Therefore if _p_ < 0.05, the distribution is thought to be not normal.
+
+```{r}
+test_col <- penguins |> filter(species == "Gentoo") |> pull(body_mass_g)
+shapiro.test(test_col)
+```
+
+
+::: {.callout-note}
+The use of normality tests such as Shapiro–Wilk is controversial and are thought, by some, to be absolutely useless for the following reasons:
+
+- On small samples, there's a good chance that the true distribution of the population is substantially non-normal, but the normality test isn't powerful to pick it up.
+- On large samples, things like the _t_-test and ANOVA are pretty robust to non-normality.
+- The whole idea of a normally distributed population is just a convenient mathematical approximation anyhow.
+
+```{r}
+#| message: false
+#| warning: false
+ggplot(penguins |> filter(species == "Gentoo"), aes(sample=bill_depth_mm)) + 
+  geom_qq() + 
+  geom_qq_line()
+
+test_col <- penguins |> filter(species == "Gentoo") |> pull(bill_depth_mm)
+shapiro.test(test_col)
+```
+
+:::
+
+### Mann-Whitney U test
+
+What do you do if the distribution of values doesn't follow a normal distribution? 
+
+1. Transform the data so it is normally distributed e.g. $log$ transformation.
+
+2. You use a non-parametric tests i.e. a statistical methods that don't assume a specific distribution for the data.
+
+The Mann-Whitney U Test, also known as the Wilcoxon Rank Sum Test, is a non-parametric statistical test used to compare the medians of two groups.
+
+#### Example
+
+```{r}
+wilcox.test(bill_depth_mm ~ species, data = peng_means)
+```
+
+```{r}
+library(tidyverse)
+library(palmerpenguins)
+library(rstatix)
+library(ggpubr)
+
+wilcox_res <- peng_means |> 
+  wilcox_test(bill_depth_mm ~ species) |>
+  add_xy_position()
+
+ggplot(peng_means, aes(x = species, y = bill_depth_mm)) +
+	geom_boxplot() +
+	stat_pvalue_manual(wilcox_res)
+```
+
+### Exercise - _t_-test etc.
+#### Introduction
+In this exercise will will be looking at a 16S sequencing data for the abundance of the genus Arcanobacterium in urine samples from clinically benign and prostate cancer patients (high-risk aggressive form). 
+
+#### Setup script
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+library(rstatix)
+library(ggpubr)
+dat_16S <- read_csv( "data/Arcanobacterium_16S.csv")
+```
+
+
+#### Tasks
+1. Determine whether there is a differential abundance for the abundance of Arcanobacterium between aggressive prostate cancer (H) and clinically benign (CB) patients, using a Welch *t* test.
+2. Create a plot
+3. Is it significantly different? In what direction
+4. Repeat using a Mann-Whitney U test 
+5. (stretch) What test is more appropriate in this situation?
+6. (stretch) Look at the file `16S_Community.tsv` and repeat with other genus (`read_csv?????`).
+
+#### Answers
+```{r}
+#| message: false
+#| warning: false
+library(tidyverse)
+library(rstatix)
+library(ggpubr)
+dat_16S <- read_csv( "data/Arcanobacterium_16S.csv")
+
+#1
+t.test(Arcanobacterium ~ primaryCat, dat = dat_16S)
+
+#2
+ttest_res <- dat_16S |> 
+  t_test(Arcanobacterium ~ primaryCat) |> 
+  add_xy_position() |> 
+  add_significance()
+
+ggplot(dat_16S, aes(x = primaryCat, y = Arcanobacterium)) +
+	geom_boxplot() +
+	stat_pvalue_manual(ttest_res, label = "p")
+
+#3
+# Yes it is significantly different with a p = 0.016. It is significantly less abundant in high risk patients compared to clinically benign.
+
+#4
+wilcox.test(Arcanobacterium ~ primaryCat, dat = dat_16S)
+
+wilcox_res <- dat_16S |> 
+  wilcox_test(Arcanobacterium ~ primaryCat) |> 
+  add_xy_position() |> 
+  add_significance()
+
+ggplot(dat_16S, aes(x = primaryCat, y = Arcanobacterium)) +
+	geom_boxplot() +
+	stat_pvalue_manual(wilcox_res, label = "p")
+```
+
+### Variations
+Variations that we will not discuss today:
+
+- Comparing a distribution to a fixed-value - One-sample statistical test
+- Comparing groups when you know the direction i.e. is x larger than y, one-tailed test as compared to the normal two-tailed test.
+- When measurements are linked in some way e.g. two qPCRs for different probes on the same set of samples i.e. a paired statistical test
+
+### Multiple "probes" at the same time
+The real power of R comes when you need to do statistical tests on a large number of times e.g. for every genus detected. Here is an example:
+
+```{r}
+#| message: false
+#| warning: false
+dat <- read_delim("data/16s_Community.tsv")
+
+dat_longer <- dat |> 
+  filter(primaryCat %in% c("CB","H")) |> 
+  pivot_longer(2:158)
+
+ttest_res <- dat_longer |> 
+  group_by(name) |> 
+  t_test(value~primaryCat) |>
+  adjust_pvalue(method = "BH") |> 
+  filter(!is.na(p)) |> 
+  arrange(p)
+
+ttest_res
+```
+
+Note: When looking at a large number of tests at the same time it is important to perform a multiple testing correction to any *p*-value. We would recommend Benjamini-Hochberg.
+
+### Are there differences in the means of three or more groups?
+
+The main statistical test to do this is the One-way ANOVA (analysis of variance). 
+
+If the test is significant then it tells us that at least one pair of means is significantly different, **but it can’t tell us which pair**. For that you need *post-hoc* tests such as Tukey Honest Significant Differences, or a multiple-testing corrected set of pairwise *t*-tests.
+
+As with the *t*-test, ANOVA assumes that the variable is normally distributed in each of the groups and that the variability within groups is similar across groups. Look at [Kruskal-Wallis test](https://www.sthda.com/english/wiki/kruskal-wallis-test-in-r) for a non-parametric alternative (use, for example, the Dunn test for a post-hoc test).
+
+### Example
+
+#### Anova model
+```{r}
+anova_res <- aov(bill_depth_mm ~ species, data = penguins)
+
+print(summary(anova_res))
+```
+
+#### Post-hoc tests
+```{r}
+TukeyHSD(anova_res)
+```
+
+#### Plot
+```{r}
+#| message: false
+#| warning: false
+ttest_res <- penguins |> 
+  t_test(bill_depth_mm ~ species) |> 
+  add_xy_position() |> 
+  add_significance()
+
+ggplot(penguins, aes(x=species, y=bill_depth_mm)) + 
+  geom_boxplot() + 
+  stat_pvalue_manual(ttest_res, label = "p.adj.signif")
+```
+
+
+### Exercise - ANOVA
+#### Introduction
+For this exercise we will be using an adapted version of data published by [Ametaj BN, et al.](https://link.springer.com/article/10.1007/s11306-010-0227-6), showing metabolite concentrations of 39 rumen samples measured by proton NMR from dairy cows fed with different proportions of barley grain.
+
+#### Setup script
+```{r}
+library(tidyverse)
+library(rstatix)
+library(ggpubr)
+
+cow_diet <- read_rds("data/cow_diet.rds")
+```
+
+#### Tasks
+1. Determine whether there are any differences in the means of uracil between the diets, using ANOVA and the Tukey Honest Significant Differences test.
+2. Make an appropriate plot.
+3. (Stretch) Repeat with the other metabolites i.e. "x3_hp", "glutamate", "proline", "uracil"    "xanthine".
+
+#### Answer
+
+```{r}
+library(tidyverse)
+library(rstatix)
+library(ggpubr)
+cow_diet <- read_rds("data/cow_diet.rds")
+
+#1
+aov_cow <- aov(uracil ~ diet, data = cow_diet)
+summary(aov_cow)
+
+TukeyHSD(aov_cow)
+
+#2
+ttest_res <- cow_diet |> 
+  t_test(uracil ~ diet) |> 
+  add_xy_position() |> 
+  add_significance()
+
+ggplot(cow_diet, aes(x=diet, y=uracil)) + 
+  geom_boxplot() + 
+  stat_pvalue_manual(ttest_res, label = "p.adj.signif")
+```
+
+## Is there a significant relationship between two continuous measurements?
+
+Correlation Analysis is a statistical method that is used to discover if there is a relationship between two sets of measurements that are continuous, and how strong that relationship may be. 
+
+Remember "Correlation is not causation". Correlation is used in everyday life to denote some form of association.
+
+![](images/Correlation_examples.png)
+
+Two key types of correlation to know about:
+
+1. Pearson's correlation coefficient. It is a measure of linear association and assesses how good a "line of best fit" is. The coefficient is often denoted by the letter $r$.
+2. Spearman's rank correlation coefficient. It is a rank correlation coefficients and measures the extent to which, as one variable increases, the other variable tends to increase, without requiring that increase to be represented by a linear relationship. The coefficient is often denoted by the Greek letter $\rho$.
+
+Example:
+```{r}
+# Pearson's
+cor.test(penguins$flipper_length_mm, penguins$body_mass_g, use="pairwise.complete.obs")
+
+# Spearman
+cor.test(penguins$flipper_length_mm, penguins$body_mass_g, use="pairwise.complete.obs", method="spearman")
+```
+
+
+```{r}
+cor_res <- cor(penguins$flipper_length_mm, penguins$body_mass_g, use="pairwise.complete.obs")
+
+ggplot(penguins, aes(x=flipper_length_mm, y=body_mass_g)) + 
+	geom_point() + 
+	geom_smooth(method="lm") + 
+	ggtitle(cor_res)
+```
+
+### Exercise - Correlation
+#### Introduction
+Again, we will be using an adapted version of data published by [Ametaj BN, et al.](https://link.springer.com/article/10.1007/s11306-010-0227-6), showing metabolite concentrations of 39 rumen samples measured by proton NMR from dairy cows fed with different proportions of barley grain.
+
+#### Setup script
+```{r}
+library(tidyverse)
+cow_diet <- read_rds("data/cow_diet.rds")
+```
+
+#### Tasks
+1. Fine the Pearson's correlation between the metabolites uracil and xanthine.
+2. Create a related plot.
+3. (stretch) Repeat with other pairs of metabolite.
+
+#### Answers
+```{r}
+library(tidyverse)
+cow_diet <- read_rds("data/cow_diet.rds")
+
+#1
+cor.test(cow_diet$uracil, cow_diet$xanthine, use="pairwise.complete.obs")
+
+#2
+cor_res <- cor(cow_diet$uracil, cow_diet$xanthine, use="pairwise.complete.obs")
+
+ggplot(cow_diet, aes(x=uracil, y=xanthine)) + 
+	geom_point() + 
+	geom_smooth(method="lm") + 
+	ggtitle(cor_res)
+```
+
+## Is there a relationship between two categorical variables?
+
+Until now we’ve only discussed analysing _continuous_ outcomes. We’ve tested for differences in means between two groups with *t*-tests, and differences among means between 3 or more groups with ANOVA. In all of these cases, the dependent variable or the outcome, was _continuous_. What if our outcome variable is _discrete_, e.g., “Yes/No”, “Mutant/WT”, “Case/Control”, etc.? Here we use a different set of procedures for assessing significant associations.
+
+A **contingency table**, also known as a cross-tabulation or cross-tab, shows how the values of two or more categorical variables are distributed across their respective categories.
+```{r}
+xtabs(~island+sex, data=penguins)
+```
+
+Chi-Square Test of Independence helps determine whether two categorical variables are independent or if there’s a relationship between them. For example, you might want to know if gender affects voting preference. It takes a contingency table as input.
+
+Assumptions:
+
+- All observations are independent.
+- Cells in the contingency table are mutually exclusive
+- Expected value of cells should be 5 or greater in at least 80% of cells
+
+Example:
+```{r}
+chisq.test(xtabs(~island+sex, data=penguins))
+```
+
+
+```{r}
+prop.table(xtabs(~island+sex, data=penguins), margin=1)
+```
+```{r}
+ggplot(penguins, aes(x = island, fill = sex)) + geom_bar(position = "fill") + ylab("proportion")
+```
+
+Fisher Exact test can be used when some of the assumptions of the Chi-Square test are broken. We will not be going into details on this here.
+
+### Exercise - relationship between two categorical variables
+#### Introduction
+We will be using the `lung` dataset from the `survival` package, focusing on two colums:
+
+- `status`: censoring status 1=censored, 2=dead
+- `sex`: Male=1 Female=2
+
+(See below for futher details on the data set)
+
+#### Setup script
+```{r}
+library(survival)
+lung_new <- lung
+lung_new$status <- factor(lung_new$status)
+```
+
+#### Tasks
+1. Create a contingency table for sex versus status.
+2. Perform a Chi-square test to see if the variables are independent.
+3. Create a relevant plot.
+
+#### Answers
+```{r}
+library(survival)
+lung_new <- lung
+lung_new$status <- factor(lung_new$status)
+
+#1
+xtabs(~sex+status, data=lung_new)
+
+#2
+chisq.test(xtabs(~sex+status, data=lung_new))
+
+#3
+ggplot(lung_new, aes(x = sex, fill = status)) + geom_bar(position = "fill") + ylab("proportion")
+```
+
+# Time to event or survival analyses
+In this part we will look at some of the steps you need to go through to create a test using biomarkers to predict a clinical outcome using real data from our recent prostate cancer bacterial biomarker paper.
+
+[Video introducing survival analyses](https://www.youtube.com/watch?v=q0rzMgpYpbQ)
+
+## Kaplan-Meier plots 
+To create the Kaplan-Meier plot we will be using the `ggsurvfit` R package. Please read about it's use [here](https://www.danieldsjoberg.com/ggsurvfit/).
+
+[Video introducing KM Plot and log-rank test](https://www.youtube.com/watch?v=t6vdjwhauF8&t=201s)
+
+```{r}
+library(survival)
+library(ggsurvfit)
+s16_merge <- read_rds("data/s16_merge.rds")
+survfit2(Surv(progression_days, progression)~Peptoniphilus, data=s16_merge) |>
+ggsurvfit()
+```
+
+### Exercise - Kaplan-Meier plots
+#### Introduction
+We’re going to be using the built-in `lung` cancer dataset that ships with the `survival` package. Columns:
+
+1. `inst`: Institution code
+2. **`time`: Survival time in days**
+3. **`status`: censoring status 1=censored, 2=dead**
+4. `age`: Age in years
+5. **`sex`: Male=1 Female=2**
+6. `ph.ecog`: ECOG performance score (0=good 5=dead)
+7. `ph.karno`: Karnofsky performance score as rated by physician
+8. `pat.karno`: Karnofsky performance score as rated by patient
+9. `meal.cal`: Calories consumed at meals
+10. `wt.loss`: Weight loss in last six months
+
+#### Setup script
+```{r}
+library(survival)
+library(ggsurvfit)
+```
+
+#### Tasks
+1. Please plot a Kaplan-Meier plot
+2. (stretch) Improve the Kaplan-Meir plot so it is closer to production ready i.e. change theme, add title, rename axes, add p-value etc.
+2. (stretch) Repeat splitting into groups based on the median age.
+3. (stretch) Plot a Kaplan-Meier for the `colon` cancer dataset grouped by gender or another variable.
+
+#### Answers
+```{r}
+library(survival)
+library(ggsurvfit)
+
+survfit2(Surv(time, status)~sex, data=lung) |> 
+ggsurvfit() + add_pvalue("annotation") 
+```
+
+```{r}
+survfit2(Surv(time, status)~sex, data=lung) |> 
+  ggsurvfit(linewidth = 1) + add_pvalue("annotation") +
+  scale_color_manual(values = c('#54738E', '#82AC7C'), name = "Sex", labels = c("Male", "Female")) +
+  scale_fill_manual(values = c('#54738E', '#82AC7C'), name = "Sex", labels = c("Male", "Female")) +
+  theme_minimal() +
+  add_confidence_interval() +
+  add_censor_mark(size = 2, alpha = 0.8) +
+  add_quantile(y_value = 0.6, color = "gray50", linewidth = 0.75) +
+  labs(
+    y = "Survival probability",
+    x = "Days to event",
+    title = "Kaplan-Meier plot of survival times for lung cancer patients grouped by gender"
+  ) 
+```
+
+
+
+## The Log-rank test
+`survdiff()` tests for differences in survival between two or more groups using a log-rank test. More information about using the log-rank test in R can be found at this [Data Science Tutorial](https://datasciencetut.com/how-to-perform-a-log-rank-test-in-r/).
+
+```{r}
+library(survival)
+s16_merge <- read_rds("data/s16_merge.rds")
+survdiff(Surv(progression_days, progression)~abbs, data=s16_merge)$pvalue
+```
+
+
+### Exercise - Log-rank test
+#### Setup script
+```{r}
+library(survival)
+library(ggsurvfit)
+```
+
+#### Tasks
+1. Determine the log-rank test p-value for gender in the `lung` dataset
+
+#### Answers
+```{r}
+survdiff(Surv(time, status)~sex, data=lung)$pvalue
+```
+
+## Cox regression
+The need for the Cox Proportional Hazards Model due to Kaplan-Meier curves and log-rank tests are limited:
+
+- Univariate only
+- Categorical only
+
+In most situations these limitations are not met.
+
+Cox regression is a linear regression model that can be thought of as a form of logistic regression where the time at which the event occurs is also taken into account.  The **hazard function** $h(t)$ for an individual at time $t$ is modeled as: 
+$$h(t) = h_0(t) \exp( \beta_1 x_1 + \beta_2 x_2 + \dots + \beta_p x_p )$$ 
+Where:
+
+- $h(t)$ is the **hazard function** at time $t$, representing the instantaneous rate of an event occurring at time $t$, given that the event has not occurred before time $t$. 
+- $h_0(t)$ is the **baseline hazard function**, which is the hazard when all predictors are equal to zero. It is not estimated explicitly but is stratified out of the model. 
+- $\exp(\dots)$ denotes the **exponential function**. 
+- $\beta_1, \beta_2, \dots, \beta_p$ are the **regression coefficients** for the predictors. These coefficients represent the effect of each predictor on the hazard. A positive $\beta$ indicates an increased hazard, and a negative $\beta$ indicates a decreased hazard. 
+- $x_1, x_2, \dots, x_p$ are the **predictor variables** (covariates) for an individual. These can be continuous, categorical, or binary. 
+
+The core assumption of the Cox model is the **proportional hazards assumption**, which states that the ratio of hazards between any two individuals is constant over time. This means that the effect of a covariate on the hazard is the same at any point in time.
+
+$$
+HR(t) = h_1(t)/h_0(t) = e^{\beta_1}
+$$
+
+- $HR(t) = 1$: No effect
+- $HR(t) < 1$: Reduction in the hazard (a good prognostic factor i.e. protective)
+- $HR(t) > 1$: Increase in hazard (a bad prognostic factor)
+
+HR is the effect size. A statistical test is performed to see if this is different from zero. See [this tutorial](http://www.sthda.com/english/wiki/cox-proportional-hazards-model) for more information
+
+```{r}
+mod_res <- coxph(Surv(progression_days, progression)~abbs, data=s16_merge) |> 
+  tidy(exponentiate=TRUE, conf.int=TRUE)
+mod_res
+```
+
+Hazard ratio = 6.2 (95% Confidence Interval 0.8-47.3), _p_ = 0.08.
+
+### Exercise - Cox regression
+#### Introduction
+Using the `lung` dataset create some Cox regression models
+
+#### Startup script
+```{r}
+library(survival)
+```
+
+#### Tasks
+1. Create a univariate Cox model of sex. Compare with the log-rank test.
+2. Let’s create another model where we analyse all the variables in the dataset.
+3. (stretch) Repeat the above with the `colon` or `ovarian` datasets
+
+#### Answers
+```{r}
+library(survival)
+#1
+fit <- coxph(Surv(time,status)~sex, data=lung) |>
+	tidy(exponentiate=TRUE, conf.int=TRUE)
+fit
+
+#2
+fit <- coxph(Surv(time,status)~
+               sex+age+ph.ecog+ph.karno+pat.karno+meal.cal+wt.loss, data=lung) |>
+tidy(exponentiate=TRUE, conf.int=TRUE)
+
+fit
+```
+This shows us how all the variables, when considered together, act to influence survival. Some are very strong predictors (sex, ECOG score). Interestingly, the Karnofsky performance score as rated by the physician was marginally significant, while the same score as rated by the patient was not.
+
+### (Advanced) Checking Cox model assumptions
+
+In order for our interpretation of the harzard ratios to be valid, two key assumptions need to hold:
+
+1. Since $\beta_k$ is fixed for all time points we assume that the hazards are “proportional” over the entire study period. This is almost never the case for actual data.
+2. We assume that loss to follow-up is random. In other words, there is no selection bias as a result of censoring prior to the end of the study.
+
+We can check the proportion hazards assumption by seeing if the beta estimates change with time.
+```{r}
+library(survival)
+library(survminer)
+coxfit <- coxph(Surv(time,status)~sex, data=lung)
+residuals <- cox.zph(coxfit)
+ggcoxzph(residuals)
+```
+
+From the graphical inspection, there is no pattern with time. The assumption of proportional hazards appears to be supported for the covariate sex.
+
+# Sources
+- [R for Data Science (2e)](https://r4ds.hadley.nz/)
+- [Biological Data Science with R](https://bdsr.stephenturner.us/)
+- [Josef Fruehwald LSA 2017 Statistical Modelling with R](https://jofrhwld.github.io/teaching/courses/2017_lsa/)
+- [Messy Datasets](https://github.com/higgi13425/medicaldata?tab=readme-ov-file#messy-datasets)
+- [Sotware Carpentry - R for Reproducible Scientific Analysis](https://swcarpentry.github.io/r-novice-gapminder/13-dplyr.html)
+- [JMP Statistics Knowledge Portal](https://www.jmp.com/en/statistics-knowledge-portal/)
