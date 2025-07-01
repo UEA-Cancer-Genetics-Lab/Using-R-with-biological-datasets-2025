@@ -16,6 +16,7 @@ t.test(Arcanobacterium ~ primaryCat, dat = dat_16S)
 write_csv(dat_16S, "Arcanobacterium_16S.csv")
 
 
+
 dat_longer <- dat |> 
 #  filter(primaryCat %in% c("CB","L","I","H")) |>
 #  mutate(primaryCat = factor(primaryCat, levels = c("CB", "L", "I", "H"))) |>
@@ -57,3 +58,8 @@ abbs_genera <- c("Ezakiella","Peptoniphilus","Porphyromonas","Anaerococcus","Fus
 s16_merge$abbs <- rowSums(s16_merge[,colnames(s16_merge) %in% abbs_genera]) > 0
 
 write_rds(s16_merge, "data/s16_merge.rds")
+
+# 2026
+- In descriptive statistics stick with tidyverse to avoid confusion with $ selection of columns
+- User tidyverse for contigency table rather than table() 
+- Fix the lung table for the chi.sq example so it is more easily understood.

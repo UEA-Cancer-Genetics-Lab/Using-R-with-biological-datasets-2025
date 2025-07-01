@@ -413,9 +413,9 @@ brauer <- read_csv(file="https://raw.githubusercontent.com/UEA-Cancer-Genetics-L
 ```
 
 #### Tasks
-1. When the growth rate is restricted to 0.05, what is the average expression level across all genes in the “response to stress” biological process, separately for each limiting nutrient? 
+1. When the growth rate is restricted to 0.05, what is the average expression level across all genes in the “response to stress” biological process, separately for each limiting nutrient? _Hint:_ 3 pipes: `filter`, `group_by`, `summarise`.
 2. What about genes in the “protein biosynthesis” biological process? 
-_Hint:_ 3 pipes: `filter`, `group_by`, `summarise`.
+
 
 #### Answer
 ```{r}
@@ -439,10 +439,10 @@ brauer |> filter(rate == 0.05 & bp == "protein biosynthesis") |>
 Needed new functions:
 
 - `n_distinct()` within a `summarise()` call gives you the number of distinct values of a variable
-- `head(n=10)` gives the top `n` rows of a data frame.
+- `slice_head(n=10)` gives the top `n` rows of a data frame.
 
 #### Tasks
-1. Which 10 biological process annotations have the most genes associated with them?  _Hint:_ 4 pipes: `group_by`, `summarise` with `n_distinct`, `arrange`, `head`.
+1. Which 10 biological process annotations have the most genes associated with them?  _Hint:_ 4 pipes: `group_by`, `summarise` with `n_distinct`, `arrange`, `slice_head`. (You could replace `arrange` and `slice_head` with `slice_max`)
 2. What about molecular functions?
 3. When the growth rate is restricted to 0.05 by limiting Glucose, which biological processes are the most upregulated? Show a sorted list with the most upregulated BPs on top, displaying the biological process and the average expression of all genes in that process rounded to two digits. _Hint:_ 5 pipes: `filter`, `group_by`, `summarise`, `mutate`, `arrange`.
 
@@ -525,6 +525,7 @@ ggplot(penguins, aes(x = island, fill = island)) + geom_bar()
 ### Exercise - Descriptive statistics of a single variable
 #### Introduction
 Here we are going to use the `penguins` data from the `palmerpenguins` dataset.
+
 #### Setup script
 ```{r}
 #| message: false
@@ -564,8 +565,6 @@ IQR(penguins$bill_length_mm, na.rm = TRUE)
 #5
 ggplot(penguins, aes(x = body_mass_g)) + geom_histogram()
 ```
-
-
 
 ## For a continuous variable are the average values of two groups different?
 
@@ -712,12 +711,12 @@ In this exercise will will be looking at a 16S sequencing data for the abundance
 library(tidyverse)
 library(rstatix)
 library(ggpubr)
-dat_16S <- read_csv( "https://github.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/blob/a51b10274d020b15453e6ee0ab7f6e7963327bd5/data/Arcanobacterium_16S.csv")
+dat_16S <- read_csv( "https://raw.githubusercontent.com/UEA-Cancer-Genetics-Lab/Using-R-with-biological-datasets-2025/a51b10274d020b15453e6ee0ab7f6e7963327bd5/data/Arcanobacterium_16S.csv")
 ```
 
 
 #### Tasks
-1. Determine whether there is a differential abundance for the abundance of Arcanobacterium between aggressive prostate cancer (H) and clinically benign (CB) patients, using a Welch *t* test.
+1. Determine whether there is a differential abundance for the abundance of Arcanobacterium (column = `Arcanobacterium`) between aggressive prostate cancer (H) and clinically benign (CB) patients (column = `primaryCat`), using a Welch *t* test.
 2. Create a plot
 3. Is it significantly different? In what direction
 4. Repeat using a Mann-Whitney U test 
@@ -819,14 +818,14 @@ TukeyHSD(anova_res)
 ```{r}
 #| message: false
 #| warning: false
-ttest_res <- penguins |> 
-  t_test(bill_depth_mm ~ species) |> 
+tukey_res <- penguins |> 
+  tukey_hsd(bill_depth_mm ~ species) |> 
   add_xy_position() |> 
   add_significance()
 
 ggplot(penguins, aes(x=species, y=bill_depth_mm)) + 
   geom_boxplot() + 
-  stat_pvalue_manual(ttest_res, label = "p.adj.signif")
+  stat_pvalue_manual(tukey_res, label = "p.adj.signif")
 ```
 
 
@@ -863,14 +862,14 @@ summary(aov_cow)
 TukeyHSD(aov_cow)
 
 #2
-ttest_res <- cow_diet |> 
-  t_test(uracil ~ diet) |> 
+tukey_res <- cow_diet |> 
+  tukey_hsd(uracil ~ diet) |> 
   add_xy_position() |> 
   add_significance()
 
 ggplot(cow_diet, aes(x=diet, y=uracil)) + 
   geom_boxplot() + 
-  stat_pvalue_manual(ttest_res, label = "p.adj.signif")
+  stat_pvalue_manual(tukey_res, label = "p.adj.signif")
 ```
 
 ## Is there a significant relationship between two continuous measurements?
