@@ -4,6 +4,8 @@ author: "Daniel Brewer"
 format: 
   html:
     embed-resources: true
+    toc: true
+    toc_float: true
 ---
 
 # Install libraries script
