@@ -1,5 +1,5 @@
 ---
-title: "Using R with biological datasets 2025"
+title: "Using R with biological datasets 2026"
 author: "Daniel Brewer"
 format: revealjs
 execute:
@@ -433,10 +433,10 @@ ggplot(data = iris, mapping = aes(x=Species, y=Petal.Width, colour = Species)) +
 
 ## Descriptive statistics - Continuous variables - Example
 ```{r}
-mean(iris$Petal.Length, na.rm = TRUE)
-sd(iris$Petal.Length, na.rm = TRUE)
-median(iris$Petal.Length, na.rm = TRUE)
-IQR(iris$Petal.Length, na.rm = TRUE)
+iris |> pull(Petal.Length) |> mean(na.rm=TRUE)
+iris |> pull(Petal.Length) |> sd(na.rm=TRUE)
+iris |> pull(Petal.Length) |> median(na.rm=TRUE)
+iris |> pull(Petal.Length) |> IQR(na.rm=TRUE)
 ```
 
 ## Descriptive statistics - Continuous variables - Plot
@@ -468,10 +468,12 @@ ggplot(iris, aes(x=Petal.Length)) +
 For categorical variables you would summarise by counting the number in each category.
 
 ```default
-> table(penguins$island)
+> penguins |> count(island)
 
-   Biscoe     Dream Torgersen
-      168       124        52
+     island   n
+1    Biscoe 168
+2     Dream 124
+3 Torgersen  52
 ```
 
 ## Descriptive statistics - Categorical variables i.e. factors
@@ -487,7 +489,7 @@ library(tidyverse)
 library(palmerpenguins)
 
 #1
-table(penguins$species)
+penguins |> count(species)
 ```
 ## Exercise Answer 2
 ```{r}
@@ -497,14 +499,14 @@ ggplot(penguins, aes(x = species, fill = species)) + geom_bar()
 ## Exercise Answer 3
 ```{r}
 #3
-mean(penguins$bill_depth_mm, na.rm = TRUE)
-sd(penguins$bill_depth_mm, na.rm = TRUE)
+penguins |> pull(bill_depth_mm) |> mean(na.rm = TRUE)
+penguins |> pull(bill_depth_mm) |> sd(na.rm = TRUE)
 ```
 ## Exercise Answer 4
 ```{r}
 #4
-median(penguins$bill_length_mm, na.rm = TRUE)
-IQR(penguins$bill_length_mm, na.rm = TRUE)
+penguins |> pull(bill_length_mm) |> median(na.rm = TRUE)
+penguins |> pull(bill_length_mm) |> IQR(na.rm = TRUE)
 ```
 ## Exercise Answer 5
 ```{r}
@@ -835,7 +837,7 @@ Until now we’ve only discussed analysing _continuous_ outcomes. We’ve tested
 
 A **contingency table**, also known as a cross-tabulation or cross-tab, shows how the values of two or more categorical variables are distributed across their respective categories.
 ```{r}
-xtabs(~island+sex, data=penguins)
+penguins |> tabyl(island,sex, show_na = FALSE) 
 ```
 
 ## Chi-square test
@@ -849,12 +851,12 @@ Assumptions:
 
 ## Chi-square test example
 ```{r}
-chisq.test(xtabs(~island+sex, data=penguins))
+penguins |> tabyl(island,sex, show_na = FALSE) |> chisq.test()
 ```
 
 ## Chi-square test proportion table
 ```{r}
-prop.table(xtabs(~island+sex, data=penguins), margin=1)
+penguins |> tabyl(island,sex, show_na = FALSE) |> adorn_percentages("row")
 ```
 ## Chi-square test plot
 ```{r}
@@ -872,12 +874,12 @@ lung_new <- lung
 lung_new$status <- factor(lung_new$status)
 
 #1
-xtabs(~sex+status, data=lung_new)
+lung_new |> tabyl(sex,status, show_na = FALSE)
 ```
 ## Exercise Answers
 ```{r}
 #2
-chisq.test(xtabs(~sex+status, data=lung_new))
+lung_new |> tabyl(sex,status, show_na = FALSE) |> chisq.test()
 ```
 ## Exercise Answers
 ```{r}

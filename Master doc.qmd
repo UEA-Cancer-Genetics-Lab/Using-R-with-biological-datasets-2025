@@ -1,5 +1,5 @@
 ---
-title: "Using R with biological datasets 2025"
+title: "Using R with biological datasets 2026"
 author: "Daniel Brewer"
 format: 
   html:
@@ -489,10 +489,10 @@ A lot of the descriptive statistics that we are interested in reported can be ga
 - `IQR(x)` - calculates the interquartile range of the values in _x_. The interquartile range is a measure of statistical dispersion, which is the spread of the data. It is the 75th percentile value minus the 25th percentile value.
 
 ```{r}
-mean(iris$Petal.Length, na.rm = TRUE)
-sd(iris$Petal.Length, na.rm = TRUE)
-median(iris$Petal.Length, na.rm = TRUE)
-IQR(iris$Petal.Length, na.rm = TRUE)
+iris |> pull(Petal.Length) |> mean(na.rm=TRUE)
+iris |> pull(Petal.Length) |> sd(na.rm=TRUE)
+iris |> pull(Petal.Length) |> median(na.rm=TRUE)
+iris |> pull(Petal.Length) |> IQR(na.rm=TRUE)
 ```
 
 It can also be useful to plot the distribution of a continuous variable using a histogram or density plot.
@@ -512,10 +512,12 @@ ggplot(iris, aes(x=Petal.Length)) + geom_density()
 For categorical variables you would summarise by counting the number in each category.
 
 ```default
-> table(penguins$island)
+> penguins |> count(island)
 
-   Biscoe     Dream Torgersen
-      168       124        52
+     island   n
+1    Biscoe 168
+2     Dream 124
+3 Torgersen  52
 ```
 
 This can be visualised using a barplot.
@@ -551,18 +553,18 @@ library(tidyverse)
 library(palmerpenguins)
 
 #1
-table(penguins$species)
+penguins |> count(species)
 
 #2
 ggplot(penguins, aes(x = species, fill = species)) + geom_bar()
 
 #3
-mean(penguins$bill_depth_mm, na.rm = TRUE)
-sd(penguins$bill_depth_mm, na.rm = TRUE)
+penguins |> pull(bill_depth_mm) |> mean(na.rm = TRUE)
+penguins |> pull(bill_depth_mm) |> sd(na.rm = TRUE)
 
 #4
-median(penguins$bill_length_mm, na.rm = TRUE)
-IQR(penguins$bill_length_mm, na.rm = TRUE)
+penguins |> pull(bill_length_mm) |> median(na.rm = TRUE)
+penguins |> pull(bill_length_mm) |> IQR(na.rm = TRUE)
 
 #5
 ggplot(penguins, aes(x = body_mass_g)) + geom_histogram()
@@ -944,7 +946,7 @@ Until now we’ve only discussed analysing _continuous_ outcomes. We’ve tested
 
 A **contingency table**, also known as a cross-tabulation or cross-tab, shows how the values of two or more categorical variables are distributed across their respective categories.
 ```{r}
-xtabs(~island+sex, data=penguins)
+penguins |> tabyl(island,sex, show_na = FALSE) 
 ```
 
 Chi-Square Test of Independence helps determine whether two categorical variables are independent or if there’s a relationship between them. For example, you might want to know if gender affects voting preference. It takes a contingency table as input.
@@ -957,12 +959,12 @@ Assumptions:
 
 Example:
 ```{r}
-chisq.test(xtabs(~island+sex, data=penguins))
+penguins |> tabyl(island,sex, show_na = FALSE) |> chisq.test()
 ```
 
 
 ```{r}
-prop.table(xtabs(~island+sex, data=penguins), margin=1)
+penguins |> tabyl(island,sex, show_na = FALSE) |> adorn_percentages("row")
 ```
 ```{r}
 ggplot(penguins, aes(x = island, fill = sex)) + geom_bar(position = "fill") + ylab("proportion")
@@ -998,10 +1000,10 @@ lung_new <- lung
 lung_new$status <- factor(lung_new$status)
 
 #1
-xtabs(~sex+status, data=lung_new)
+lung_new |> tabyl(sex,status, show_na = FALSE)
 
 #2
-chisq.test(xtabs(~sex+status, data=lung_new))
+lung_new |> tabyl(sex,status, show_na = FALSE) |> chisq.test()
 
 #3
 ggplot(lung_new, aes(x = sex, fill = status)) + geom_bar(position = "fill") + ylab("proportion")
